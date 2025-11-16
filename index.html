@@ -13,7 +13,6 @@
     .card{ background:white; padding:12px; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08); margin-bottom:8px; }
     .meta{ font-size:13px; color:#666; margin-bottom:6px; }
     .title{ font-weight:600; margin-bottom:6px; }
-    small.badge{ background:#eef; color:#124; padding:3px 6px; border-radius:999px; margin-left:6px; font-weight:600; }
     #controls{ display:flex; gap:8px; }
     #newFeed{ width:340px; max-width:60vw; }
     footer{ margin-top:14px; font-size:13px; color:#666; }
@@ -26,7 +25,7 @@
       <div style="display:flex;gap:8px;align-items:center">
         <input id="filter" type="text" placeholder="Filtrar por palabras clave (separa por comas, ej: corrupción,Ucrania,Zelensky)" />
         <div id="controls">
-          <input id="newFeed" type="text" placeholder="Añadir feed RSS (URL)" />
+          <input id="newFeed" type="text" placeholder="Añadir feed RSS (puedes pegar varios separados por comas o saltos de línea)" />
           <button id="addFeedBtn">Añadir</button>
           <button id="refreshBtn">Actualizar</button>
         </div>
@@ -42,24 +41,24 @@
   </footer>
 
   <script>
-  // Lista inicial de feeds (puedes editarla)
+  // Lista inicial de feeds
   const defaultFeeds = [
     "https://feeds.bbci.co.uk/news/rss.xml",
     "https://www.reutersagency.com/feed/?best-regions=world&post_type=best",
     "https://elpais.com/rss/feed.html?feedId=1022"
   ];
 
-  // Usamos AllOrigins para evitar problemas CORS (para prototipo)
+  // Proxy para evitar CORS
   function proxyUrl(url){
     return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
   }
 
-  // Guardar/leer feeds en localStorage para que persistan entre sesiones
+  // Guardar/leer feeds
   function getSavedFeeds(){
-    const s = localStorage.getItem('my_feeds_v1');
+    const s = localStorage.getItem('my_feeds_v2');
     try{ return s ? JSON.parse(s) : defaultFeeds; } catch(e){ return defaultFeeds; }
   }
-  function saveFeeds(list){ localStorage.setItem('my_feeds_v1', JSON.stringify(list)); renderFeedButtons(); }
+  function saveFeeds(list){ localStorage.setItem('my_feeds_v2', JSON.stringify(list)); renderFeedButtons(); }
 
   const feedsContainer = document.getElementById('feeds');
   const listEl = document.getElementById('list');
@@ -69,7 +68,7 @@
   const refreshBtn = document.getElementById('refreshBtn');
 
   let feeds = getSavedFeeds();
-  let articles = []; // {title, link, date, source, description}
+  let articles = [];
 
   function renderFeedButtons(){
     feedsContainer.innerHTML = '';
@@ -91,39 +90,34 @@
     });
   }
 
-  // Parsear XML del RSS y extraer items
   function parseRss(xmlStr, sourceUrl){
     const parser = new DOMParser();
     const doc = parser.parseFromString(xmlStr, "application/xml");
     const items = Array.from(doc.querySelectorAll('item')).slice(0,25);
     const feedTitleEl = doc.querySelector('channel > title');
     const source = feedTitleEl ? feedTitleEl.textContent : (new URL(sourceUrl).hostname);
-    const parsed = items.map(it => {
+    return items.map(it => {
       const title = it.querySelector('title')?.textContent || 'Sin título';
       const link = it.querySelector('link')?.textContent || it.querySelector('guid')?.textContent || '';
       const desc = it.querySelector('description')?.textContent || it.querySelector('content\\:encoded')?.textContent || '';
       const pub = it.querySelector('pubDate')?.textContent || '';
       return { title, link, description: stripHtml(desc), date: pub, source };
     });
-    return parsed;
   }
 
-  // limpiar html básico
   function stripHtml(html){
     const tmp = document.createElement('div');
     tmp.innerHTML = html || '';
     return tmp.textContent || tmp.innerText || '';
   }
 
-  // Mostrar artículos (aplica filtro multilenguaje)
   function renderArticles(){
     const q = filterInput.value.trim().toLowerCase();
-    const keywords = q.split(',').map(k => k.trim()).filter(k => k);
+    const keywords = q.split(/[,]+/).map(k => k.trim()).filter(k => k);
 
     const filtered = articles.filter(a => {
       if(keywords.length === 0) return true;
       const text = (a.title + ' ' + a.description + ' ' + a.source).toLowerCase();
-      // Devuelve true si contiene alguna de las palabras clave
       return keywords.some(k => text.includes(k));
     });
 
@@ -132,6 +126,7 @@
       listEl.innerHTML = '<div class="card">No hay resultados.</div>';
       return;
     }
+
     filtered.forEach(a => {
       const card = document.createElement('div'); card.className='card';
       const meta = document.createElement('div'); meta.className='meta';
@@ -145,14 +140,12 @@
     });
   }
 
-  // Fetch de un feed y añadir artículos
   async function fetchFeed(url){
     try {
       const res = await fetch(proxyUrl(url));
       if(!res.ok) throw new Error('Error al obtener feed');
       const text = await res.text();
       const parsed = parseRss(text, url);
-      // combinar evitando duplicados por link
       const map = new Map(articles.map(a => [a.link || a.title, a]));
       parsed.forEach(p => map.set(p.link || p.title, p));
       articles = Array.from(map.values()).sort((a,b)=> (new Date(b.date) - new Date(a.date)));
@@ -162,7 +155,6 @@
     }
   }
 
-  // Cargar todos los feeds
   async function loadAllFeeds(){
     articles = [];
     renderArticles();
@@ -171,12 +163,14 @@
     }
   }
 
-  // Eventos UI
+  // Añadir varios feeds a la vez
   addFeedBtn.onclick = ()=>{
     const val = newFeedInput.value.trim();
-    if(!val) return alert('Introduce la URL del feed RSS');
-    if(!val.startsWith('http')) return alert('Introduce una URL válida (empieza por http...)');
-    feeds.unshift(val);
+    if(!val) return alert('Introduce al menos una URL de feed RSS');
+    // Separar por comas o saltos de línea
+    const newFeeds = val.split(/[\n,]+/).map(f => f.trim()).filter(f => f && f.startsWith('http'));
+    if(newFeeds.length === 0) return alert('No se encontraron URLs válidas. Recuerda empezar con http o https');
+    feeds = [...newFeeds, ...feeds];
     saveFeeds(feeds);
     newFeedInput.value = '';
     loadAllFeeds();
@@ -185,9 +179,9 @@
   refreshBtn.onclick = ()=> loadAllFeeds();
   filterInput.oninput = ()=> renderArticles();
 
-  // inicializar
   renderFeedButtons();
   loadAllFeeds();
   </script>
 </body>
 </html>
+
