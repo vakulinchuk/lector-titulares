@@ -24,7 +24,7 @@
     <div style="flex:1">
       <h2 style="margin:0 0 6px 0">Mi Lector de Titulares</h2>
       <div style="display:flex;gap:8px;align-items:center">
-        <input id="filter" type="text" placeholder="Filtrar por palabra clave (ej: corrupción, Ucrania, Zelensky)"/>
+        <input id="filter" type="text" placeholder="Filtrar por palabras clave (separa por comas, ej: corrupción,Ucrania,Zelensky)" />
         <div id="controls">
           <input id="newFeed" type="text" placeholder="Añadir feed RSS (URL)" />
           <button id="addFeedBtn">Añadir</button>
@@ -115,13 +115,18 @@
     return tmp.textContent || tmp.innerText || '';
   }
 
-  // Mostrar artículos (aplica filtro por palabra clave)
+  // Mostrar artículos (aplica filtro multilenguaje)
   function renderArticles(){
     const q = filterInput.value.trim().toLowerCase();
+    const keywords = q.split(',').map(k => k.trim()).filter(k => k);
+
     const filtered = articles.filter(a => {
-      if(!q) return true;
-      return (a.title + ' ' + a.description + ' ' + a.source).toLowerCase().includes(q);
+      if(keywords.length === 0) return true;
+      const text = (a.title + ' ' + a.description + ' ' + a.source).toLowerCase();
+      // Devuelve true si contiene alguna de las palabras clave
+      return keywords.some(k => text.includes(k));
     });
+
     listEl.innerHTML = '';
     if(filtered.length === 0){
       listEl.innerHTML = '<div class="card">No hay resultados.</div>';
