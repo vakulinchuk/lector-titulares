@@ -48,9 +48,9 @@
     "https://elpais.com/rss/feed.html?feedId=1022"
   ];
 
-  // Proxy para evitar CORS
+  // Proxy propio (publicado en Fly.io o similar)
   function proxyUrl(url){
-    return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
+    return 'https://rss-vakulinchuk.fly.dev/?url=' + encodeURIComponent(url);
   }
 
   // Guardar/leer feeds
@@ -184,4 +184,3 @@
   </script>
 </body>
 </html>
-
