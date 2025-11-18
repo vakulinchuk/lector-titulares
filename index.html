@@ -48,9 +48,9 @@
     "https://elpais.com/rss/feed.html?feedId=1022"
   ];
 
-  // Proxy propio (publicado en Fly.io o similar)
+  // Proxy propio en Koyeb
   function proxyUrl(url){
-    return 'https://rss-vakulinchuk.fly.dev/?url=' + encodeURIComponent(url);
+    return 'https://rss-vakulinchuk.koyeb.app/proxy?url=' + encodeURIComponent(url);
   }
 
   // Guardar/leer feeds
@@ -163,11 +163,9 @@
     }
   }
 
-  // Añadir varios feeds a la vez
   addFeedBtn.onclick = ()=>{
     const val = newFeedInput.value.trim();
     if(!val) return alert('Introduce al menos una URL de feed RSS');
-    // Separar por comas o saltos de línea
     const newFeeds = val.split(/[\n,]+/).map(f => f.trim()).filter(f => f && f.startsWith('http'));
     if(newFeeds.length === 0) return alert('No se encontraron URLs válidas. Recuerda empezar con http o https');
     feeds = [...newFeeds, ...feeds];
